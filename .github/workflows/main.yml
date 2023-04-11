@@ -1,0 +1,75 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Workflow dispatch
+
+# Controls when the workflow will run
+on:
+  # Run every day at 5:55 UTC
+  schedule:
+    - cron: '55 5 * * *'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "Main"
+  Main:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Get latest Hekate release info
+        run: |
+          curl -Ls -o info.json -H 'Accept: application/vnd.github+json' -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H 'X-GitHub-Api-Version: 2022-11-28' https://api.github.com/repos/CTCaer/hekate/releases/latest
+
+      - name: Get latest Hekate release version
+        id: versions
+        run: |
+          echo "upstream=$(jq -r '.tag_name' info.json)" >> $GITHUB_OUTPUT
+          echo "current=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+      - name: Get latest Hekate payload
+        if: steps.versions.outputs.current != steps.versions.outputs.upstream
+        run: |
+          jq -r '.assets[].browser_download_url | select(contains("hekate_ctcaer"))' info.json | xargs curl -LsO
+          unzip *.zip hekate_ctcaer_*.bin
+          rm *.zip
+          mv *.bin payload.bin
+
+      - name: Convert payload
+        if: steps.versions.outputs.current != steps.versions.outputs.upstream
+        run: |
+          python tx_custom_boot.py
+          rm *.bin
+          zip -m9 hekate_boot_dat_${{steps.versions.outputs.upstream}}.zip boot.dat
+
+      - name: Update current version
+        if: steps.versions.outputs.current != steps.versions.outputs.upstream
+        run: |
+          echo ${{steps.versions.outputs.upstream}} > version.txt
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add version.txt
+          git commit -m "Updated version to ${{steps.versions.outputs.upstream}}"
+          git tag -a ${{steps.versions.outputs.upstream}} -m ${{steps.versions.outputs.upstream}}
+          git push origin ${{github.ref_name}} --tags
+
+      - name: Create release
+        if: steps.versions.outputs.current != steps.versions.outputs.upstream
+        run: |
+          gh release create ${{steps.versions.outputs.upstream}} --title ${{steps.versions.outputs.upstream}} --notes "Updated version to ${{steps.versions.outputs.upstream}}" *.zip
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Cleanup
+        run: rm -f info.json *.zip
