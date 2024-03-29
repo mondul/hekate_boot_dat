@@ -21,7 +21,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get latest Hekate release info
         run: |
@@ -33,11 +33,11 @@ jobs:
           echo "upstream=$(jq -r '.tag_name' info.json)" >> $GITHUB_OUTPUT
           echo "current=$(cat version.txt)" >> $GITHUB_OUTPUT
 
-      - name: Install Python 3.11
+      - name: Install Python 3.12
         if: steps.versions.outputs.current != steps.versions.outputs.upstream
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Get latest Hekate payload
         if: steps.versions.outputs.current != steps.versions.outputs.upstream
