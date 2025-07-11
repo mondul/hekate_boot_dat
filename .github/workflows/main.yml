@@ -25,12 +25,12 @@ jobs:
 
       - name: Get latest Hekate release info
         run: |
-          curl -Ls -o info.json -H 'Accept: application/vnd.github+json' -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H 'X-GitHub-Api-Version: 2022-11-28' https://api.github.com/repos/CTCaer/hekate/releases/latest
+          curl -Ls -o info.json -H 'Accept: application/vnd.github+json' -H 'Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' -H 'X-GitHub-Api-Version: 2022-11-28' https://api.github.com/repos/CTCaer/hekate/releases?per_page=1
 
       - name: Get latest Hekate release version
         id: versions
         run: |
-          echo "upstream=$(jq -r '.tag_name' info.json)" >> $GITHUB_OUTPUT
+          echo "upstream=$(jq -r '.[0].tag_name' info.json)" >> $GITHUB_OUTPUT
           echo "current=$(cat version.txt)" >> $GITHUB_OUTPUT
 
       - name: Install Python 3.12
@@ -42,7 +42,7 @@ jobs:
       - name: Get latest Hekate payload
         if: steps.versions.outputs.current != steps.versions.outputs.upstream
         run: |
-          jq -r '.assets[].browser_download_url | select(contains("hekate_ctcaer"))' info.json | xargs curl -LsO
+          jq -r '.[0].assets[].browser_download_url | select(contains("hekate_ctcaer"))' info.json | xargs curl -LsO
           unzip *.zip hekate_ctcaer_*.bin
           rm *.zip
           mv *.bin payload.bin
