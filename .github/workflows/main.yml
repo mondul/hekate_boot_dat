@@ -42,9 +42,9 @@ jobs:
       - name: Get latest Hekate payload
         if: steps.versions.outputs.current != steps.versions.outputs.upstream
         run: |
-          jq -r '.[0].assets[].browser_download_url | select(contains("hekate_ctcaer"))' info.json | xargs curl -Lso hekate.zip
-          unzip hekate.zip hekate_ctcaer_*.bin
-          rm hekate.zip
+          jq -r '.[0].assets[].browser_download_url | select(contains("hekate_ctcaer"))' info.json | xargs wget
+          unzip *.zip hekate_ctcaer_*.bin
+          rm *.zip
           mv *.bin payload.bin
 
       - name: Convert payload
