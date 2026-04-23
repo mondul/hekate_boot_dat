@@ -25,7 +25,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@main
 
       - name: Get latest Hekate release version
         id: versions
@@ -47,11 +47,16 @@ jobs:
     needs: Check
     if: needs.Check.outputs.current != needs.Check.outputs.upstream
     runs-on: ubuntu-latest
+
     steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout repo
+        uses: actions/checkout@main
+
       - name: Install Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@main
         with:
-          python-version: '3.12'
+          python-version: '3.14'
 
       - name: Get latest Hekate payload
         run: >
