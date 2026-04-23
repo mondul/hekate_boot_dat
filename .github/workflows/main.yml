@@ -53,7 +53,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@main
 
-      - name: Install Python 3.12
+      - name: Install Python
         uses: actions/setup-python@main
         with:
           python-version: '3.14'
