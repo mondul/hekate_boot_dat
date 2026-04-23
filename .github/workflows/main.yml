@@ -12,10 +12,14 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "Main"
-  Main:
+  # This workflow contains two jobs called "Check" and "Update"
+  Check:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
+    # Output variables for next job
+    outputs:
+      current: ${{ steps.versions.outputs.current }}
+      upstream: ${{ steps.versions.outputs.upstream }}
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -33,42 +37,40 @@ jobs:
           echo "upstream=$(jq -r '.[0].tag_name' info.json)" >> $GITHUB_OUTPUT
           echo "current=$(cat version.txt)" >> $GITHUB_OUTPUT
 
+  # Only run this job if needed
+  Update:
+    needs: Check
+    if: needs.Check.outputs.current != needs.Check.outputs.upstream
+    runs-on: ubuntu-latest
+    steps:
       - name: Install Python 3.12
-        if: steps.versions.outputs.current != steps.versions.outputs.upstream
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Get latest Hekate payload
-        if: steps.versions.outputs.current != steps.versions.outputs.upstream
         run: |
           jq -r '.[0].assets[].browser_download_url | select(test("hekate_ctcaer_(?!.*__ram8GB).+\\.bin$"))' info.json | xargs curl -LsO
           mv *.bin payload.bin
 
       - name: Convert payload
-        if: steps.versions.outputs.current != steps.versions.outputs.upstream
         run: |
           python tx_custom_boot.py
           rm *.bin
-          zip -m9 hekate_boot_dat_${{steps.versions.outputs.upstream}}.zip boot.dat
+          zip -m9 hekate_boot_dat_${{needs.Check.outputs.upstream}}.zip boot.dat
 
       - name: Update current version
-        if: steps.versions.outputs.current != steps.versions.outputs.upstream
         run: |
-          echo ${{steps.versions.outputs.upstream}} > version.txt
+          echo ${{needs.Check.outputs.upstream}} > version.txt
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add version.txt
-          git commit -m "Updated version to ${{steps.versions.outputs.upstream}}"
-          git tag -a ${{steps.versions.outputs.upstream}} -m ${{steps.versions.outputs.upstream}}
+          git commit -m "Updated version to ${{needs.Check.outputs.upstream}}"
+          git tag -a ${{needs.Check.outputs.upstream}} -m ${{needs.Check.outputs.upstream}}
           git push origin ${{github.ref_name}} --tags
 
       - name: Create release
-        if: steps.versions.outputs.current != steps.versions.outputs.upstream
         run: |
-          gh release create ${{steps.versions.outputs.upstream}} --title ${{steps.versions.outputs.upstream}} --notes "Updated version to ${{steps.versions.outputs.upstream}}" *.zip
+          gh release create ${{needs.Check.outputs.upstream}} --title ${{needs.Check.outputs.upstream}} --notes "Updated version to ${{needs.Check.outputs.upstream}}" *.zip
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cleanup
-        run: rm -f info.json *.zip
